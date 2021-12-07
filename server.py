@@ -11,6 +11,7 @@ import socket
 #       add a ttyl for failed attempts
 #       add data cleansing methods
 #       handle threads
+#       add a server restart method
 
 data_format = 'ascii'
 
@@ -27,7 +28,7 @@ def broadcast(broadcast_group, message):
 def remove_connection(connection):
     index = all_connections.index(connection)
     alias = all_aliases[index]
-    broadcast(all_connections, f"~ lost connection ~ An error occurred for {alias}. They are no longer connected.".encode(data_format))
+    broadcast(all_connections, "~ connection ~ {} is no longer connected.\n".format(alias).encode(data_format))
     all_connections.remove(connection)
     all_aliases.remove(alias)
     connection.close()
@@ -35,8 +36,8 @@ def remove_connection(connection):
 def close_all_connections():
     for connection in all_connections:
         connection.close()
-    all_connections.clear()
-    all_aliases.clear()
+    all_connections[:]
+    all_aliases[:]
 
 ################
 # Instruction headers:
@@ -53,17 +54,17 @@ def an_individual_connection(connection, connection_address):
     while connected:
         try:
             message = connection.recv(1024)
-            broadcast_message = alias + b": " + message
-            print(f"{connection_address} said: {message}")
-            print(f"{broadcast_message} was sent as a full broadcast")
+            broadcast_message = alias + b": " + message + b"\n"
+            print("\n{} said: {}".format(connection_address, message))
+            print("{} was sent as a full broadcast".format(broadcast_message))
             broadcast(all_connections, broadcast_message)
             if message == close_instruction:
-                user_goodbye = f"~ external ~ {alias} closed their connection.".encode(data_format)
+                user_goodbye = "~ external ~ {} closed their connection.\n".format(alias).encode(data_format)
                 print(user_goodbye)
-                broadcast(user_goodbye)
+                broadcast(all_connections, user_goodbye)
                 connected = False
             if message == server_stats_instruction:
-                connection.send(f"~ count ~ There is/are {threading.activeCount() - 1} active connection/s.".encode(data_format))
+                connection.send("~ count ~ There is/are {} active connection/s.\n".format(threading.activeCount() - 1).encode(data_format))
         except:
             connected = False
     remove_connection(connection)
@@ -76,8 +77,8 @@ port_server = 10000
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind((ip_server, port_server))
-server.listen()
-print(f"~ listen ~ The server is listening on {ip_server}:{port_server}")
+server.listen(256)
+print("~ listen ~ The server is listening on {}:{}".format(ip_server, port_server))
 
 
 
@@ -85,17 +86,17 @@ print(f"~ listen ~ The server is listening on {ip_server}:{port_server}")
 def start_routing():
     while True:
         client, address = server.accept()
-        print(f"A computer successfully connected from {str(address)}.")
+        print("A computer successfully connected from {}.".format(str(address)))
 
         client.send('send_an_alias'.encode(data_format))
         alias = client.recv(1024).decode(data_format)
 
-        print(f"New connection alias is {alias}")
+        print("New connection alias is {}".format(alias))
         all_aliases.append(alias)
         all_connections.append(client)
 
-        broadcast(all_connections, f'{alias} joined the chat.'.encode(data_format))
-        client.send('You have successfully connected.'.encode(data_format))
+        broadcast(all_connections, "{} joined the chat.\n".format(alias).encode(data_format))
+        client.send('You have successfully connected.\n'.encode(data_format))
 
         # Add address to args
         thread = threading.Thread(target=an_individual_connection, args=(client, address))

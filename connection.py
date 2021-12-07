@@ -4,7 +4,7 @@ import threading
 # Change this to only show if asked
 
 chatter = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-chatter.connect(('192.168.56.1', 10000))
+chatter.connect(('127.0.0.1', 10000))
 
 accepting_messages = True
 
@@ -15,7 +15,8 @@ def receive():
             if message == 'send_an_alias':
                 alias = input("Enter your alias: ")
                 chatter.send(alias.encode('ascii'))
-                pass
+                print("")
+                write_thread.start()
             else:
                 print(message)
         except:
@@ -28,7 +29,7 @@ def write():
     while message != "close":
         message = f'{input("")}'
         chatter.send(message.encode('ascii'))
-    accepting_messages = False
+    print("Attempting to close the connection.")
     chatter.close()
 
 
@@ -37,4 +38,3 @@ receive_thread = threading.Thread(target=receive)
 receive_thread.start()
 
 write_thread = threading.Thread(target=write)
-write_thread.start()
