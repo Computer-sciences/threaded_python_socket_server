@@ -1,0 +1,77 @@
+import socket
+import threading
+
+# todo: headers for server socket as import (classed data)
+#       function to print strings at equal start points
+#       make instruction  "How many?"
+#       allow clients to close the connection with a message
+#       swap ip with alias for the broadcast
+
+ip_server = socket.gethostbyname(socket.gethostname())
+
+port = 10000
+
+# Internet family server assignment for socket
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.bind((ip_server, port))
+
+# Components
+
+header_for_length = 1024
+ascii_ = 'ascii'
+close_instruction = 'close'
+server_stats_instruction = 'how many'
+
+conns = []
+aliases = []
+
+# server:
+def an_individual_connection(conn, addr):
+    connected = True
+    while connected:
+        msg = conn.recv(header_for_length).decode(ascii_)
+        print(f"{addr}: {msg}")
+        try:
+            broadcast(msg)
+            if msg == close_instruction:
+                user_goodbye = f"~ external ~ {addr} closed their connection."
+                print(user_goodbye)
+                broadcast(user_goodbye)
+                connected = False
+            if msg == server_stats_instruction:
+                conn.send(f"~ count ~ There is/are {threading.activeCount() - 1} active connection/s.".encode(ascii_))
+        except:
+            index = conns.index(conn)
+            conns.remove(conn)
+            conn.close()
+            alias = aliases[index]
+            broadcast(f"~ lost connection ~ An error occurred for {alias}. They are no longer connected.")
+            aliases.remove(alias)
+            connected = False
+    conn.close()
+
+def broadcast(msg):
+    for client in conns:
+        client.send(msg)
+
+def start_routing():
+    print('~ start ~~ Starting the server.')
+    server.listen()
+    print(f"~ listen ~ The server is listening on {ip_server}:{port}")
+    while True:
+        # binds client data to variables for recall.
+        conn, addr = server.accept()
+        print(f"A computer successfully connected from {str(addr)}. The connection is open:")
+        conn.send('send_me_alias'.encode(ascii_))
+        alias = conn.recv(header_for_length).decode(ascii_)
+        conns.append(conn)
+        aliases.append(alias)
+        print(f"New connection alias is {alias}")
+        broadcast(f"{alias} is now also in this chat".encode(ascii_))
+        conn.send("You have successfully connected.".encode(ascii_))
+        # binds an instance of a connections allowed routes to a thread.
+        thread = threading.Thread(target=an_individual_connection, args=(conn,addr))
+        thread.start()
+        # print(f"~ count ~ There is/are {threading.activeCount() - 1} active connection/s.")
+
+start_routing()
