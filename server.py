@@ -16,6 +16,7 @@ import signal
 #       add a server restart method
 #       add server shutdown and restart commands
 #       make an http and https connection list
+#       needs http header functionality (should probably be a class)
 
 ascii_format = 'ascii'
 
@@ -123,7 +124,7 @@ def ascii_connections_route():
 
         ascii_client, ascii_client_address = ascii_socket.accept()
         
-        print("A computer successfully connected from {}.".format(str(ascii_client_address)))
+        print("A computer successfully connected to the chat server from {}.".format(str(ascii_client_address)))
 
         ascii_client.send('send_an_alias'.encode(ascii_format))
         alias = ascii_client.recv(1024).decode(ascii_format)
@@ -147,8 +148,25 @@ def web_server_connections_route():
     while True:
 
         web_socket_connection_to_client, web_socket_client_address = web_socket.accept()
-        print("A computer successfully connected from {}.".format(str(web_socket_client_address)))
+        print("A computer successfully connected to the web server from {}.".format(str(web_socket_client_address)))
         all_web_connections.append(web_socket_connection_to_client)
+
+        message = web_socket_connection_to_client.recv(1024)
+        try:
+            filename = message.split()[1]
+            print(filename)
+            information = open(filename[1:])
+            file_stream = information.read()
+            web_socket_connection_to_client.send("HTTP/1.1 200 OK\r\n\r\n")
+        
+            for i in range(0, len(file_stream)):
+                web_socket_connection_to_client.send(file_stream[i])
+            web_socket_connection_to_client.send("\r\n")
+
+        except Exception as e:
+            print("~ web ~ There was a file error from the request\n {}".format(e))
+            continue
+        web_socket_connection_to_client.close()
 
 
 
