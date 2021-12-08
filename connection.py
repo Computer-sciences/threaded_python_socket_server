@@ -5,11 +5,11 @@ import threading
 
 chatter = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 chatter.connect(('127.0.0.1', 10000))
-
-accepting_messages = True
+ttl = 16
 
 def receive():
-    while accepting_messages:
+    attempts = 0
+    while True:
         try:
             message = chatter.recv(1024).decode('ascii')
             if message == 'send_an_alias':
@@ -18,19 +18,29 @@ def receive():
                 print("")
                 write_thread.start()
             else:
+                attempts += 1
                 print(message)
+                if attempts == ttl:
+                    chatter.close()
+                    print("The connection was lost. Press enter to exit.")
+                    break
         except:
-            print("The connection was closed.")
             chatter.close()
+            print("The connection was closed. Press enter to exit")
             break
 
 def write():
-    message = "open"
-    while message != "close":
-        message = f'{input("")}'
-        chatter.send(message.encode('ascii'))
-    print("Attempting to close the connection.")
+    while chatter:
+            message = f'{input("")}'
+            if (chatter):
+                try:
+                    chatter.send(message.encode('ascii'))
+                except:
+                    print("Exiting due to no connection.")
+                    break
+
     chatter.close()
+    print("The connection was closed.")
 
 
 # start both threads

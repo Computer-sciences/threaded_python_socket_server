@@ -1,5 +1,7 @@
 import threading
 import socket
+import os
+import signal
 
 # todo: headers for server socket as import (classed data)
 #       function to print strings at equal start points
@@ -13,11 +15,15 @@ import socket
 #       handle threads
 #       add a server restart method
 #       add server shutdown and restart commands
+#       make an http and https connection list
 
 ascii_format = 'ascii'
 
+
 all_ascii_connections = []
 all_ascii_aliases = []
+all_web_connections = []
+
 
 def broadcast(broadcast_group, message):
     for connection in broadcast_group:
@@ -39,12 +45,23 @@ def close_all_connections():
         connection.close()
     all_ascii_connections[:]
     all_ascii_aliases[:]
+    for connection in all_web_connections:
+        connection.close()
+    all_web_connections[:]
+
+def shut_down_server():
+    close_all_connections()
+    ascii_socket.close()
+    web_socket.close()
+    print("The server shutdown has completed. Attempting to exit the shell.")
+    os.kill(os.getpid(), signal.SIGTERM)
 
 ################
-# Instruction headers:
+# Server instruction headers:
 
 close_instruction = 'close'.encode(ascii_format)
 server_stats_instruction = 'how many'.encode(ascii_format)
+shutdown_server_instruction = 'shutdown the server'.encode(ascii_format)
 
 ################
 
@@ -66,6 +83,9 @@ def an_individual_ascii_connection(connection, connection_address):
                 connected = False
             if message == server_stats_instruction:
                 connection.send("~ count ~ There is/are {} active connection/s.\n".format(threading.activeCount() - 1).encode(ascii_format))
+            if message == shutdown_server_instruction:
+                print("A message was received that shuts down the server.")
+                shut_down_server()
         except:
             connected = False
     remove_ascii_connection(connection)
@@ -74,23 +94,31 @@ def an_individual_ascii_connection(connection, connection_address):
 
 
 ip_server = socket.gethostbyname(socket.gethostname())
-port_server = 10000
+port_ascii_socket = 10000
+port_web_socket = 10001
 
-ascii_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-ascii_server.bind((ip_server, port_server))
+ascii_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+ascii_socket.bind((ip_server, port_ascii_socket))
+
+web_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+web_socket.bind((ip_server, port_web_socket))
 
 
 
 
-def start_routing():
+###########
+# Threads #
+###########
 
-    ascii_server.listen(16)
-    print("\n~ listen ~ The ascii server is listening on {}:{}\n".format(ip_server, port_server))
+def ascii_connections_route():
 
-    close_all_connections()
+    ascii_socket.listen(16)
+    print("\n~ listen ~ The ascii server is listening on {}:{}\n".format(ip_server, port_ascii_socket))
 
     while True:
-        ascii_client, ascii_client_address = ascii_server.accept()
+
+        ascii_client, ascii_client_address = ascii_socket.accept()
+        
         print("A computer successfully connected from {}.".format(str(ascii_client_address)))
 
         ascii_client.send('send_an_alias'.encode(ascii_format))
@@ -107,8 +135,35 @@ def start_routing():
         ascii_thread = threading.Thread(target=an_individual_ascii_connection, args=(ascii_client, ascii_client_address))
         ascii_thread.start()
 
+def web_server_connections_route():
+
+    web_socket.listen(16)
+    print("\n~ listen ~ The web server is listening on {}:{}\n".format(ip_server, port_web_socket))
+
+    web_socket_connection_to_client, web_socket_client_address = web_socket.accept()
+    print("A computer successfully connected from {}.".format(str(web_socket_client_address)))
+    all_web_connections.append(web_socket_connection_to_client)
 
 
 
+
+# Thread assignments
+
+def start_routing():
+
+    close_all_connections()
+    
+    ascii_socket_thread = threading.Thread(target=ascii_connections_route, args=())
+    ascii_socket_thread.start()
+    
+    web_socket_thread = threading.Thread(target=web_server_connections_route, args=())
+    web_socket_thread.start()
+
+
+
+
+#
+#
+#
 #
 start_routing()
