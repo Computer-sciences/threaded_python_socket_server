@@ -98,9 +98,13 @@ port_ascii_socket = 10000
 port_web_socket = 10001
 
 ascii_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+# (opt/reuse) allows server restart using the same port
+ascii_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 ascii_socket.bind((ip_server, port_ascii_socket))
 
 web_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+# (opt/reuse) allows server restart using the same port
+web_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 web_socket.bind((ip_server, port_web_socket))
 
 
@@ -140,9 +144,11 @@ def web_server_connections_route():
     web_socket.listen(16)
     print("\n~ listen ~ The web server is listening on {}:{}\n".format(ip_server, port_web_socket))
 
-    web_socket_connection_to_client, web_socket_client_address = web_socket.accept()
-    print("A computer successfully connected from {}.".format(str(web_socket_client_address)))
-    all_web_connections.append(web_socket_connection_to_client)
+    while True:
+
+        web_socket_connection_to_client, web_socket_client_address = web_socket.accept()
+        print("A computer successfully connected from {}.".format(str(web_socket_client_address)))
+        all_web_connections.append(web_socket_connection_to_client)
 
 
 
